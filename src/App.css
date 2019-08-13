@@ -1,0 +1,13 @@
+*{
+  box-sizing: border-box;
+}
+
+.ui.checkbox input.hidden+label {
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  color: #fff;
+  user-select: none;
+}
+
