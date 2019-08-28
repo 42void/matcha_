@@ -54,8 +54,6 @@ app.get('/getUserInfos', function(req, res) {
   });
 })
 
-
-
 app.get('/users/:id', (req, res) => {
   connection.query("SELECT * FROM users WHERE id=?", [req.params.id], function (err, results) {
     if (!!err) {
@@ -190,7 +188,8 @@ app.post("/login", (req, res, next) => {
 })
 
 app.get('/users', (req, res) => {
-  let session,i=0;
+  let session
+  let i=0
   for(let prop in req.sessionStore.sessions){
     session = JSON.parse(req.sessionStore.sessions[prop]).myUserId
     console.log(i++, req.session)
@@ -528,28 +527,53 @@ app.post('/registerChatMessage', (req, res) => {
   });
 })
 
-app.post('/getAllConversations', (req, res) => { 
-  const chat_match_username = Object.keys(req.body)[0]
-  connection.query("SELECT id FROM users WHERE username=?", [chat_match_username], function (err, results) {
-    if (!!err) {
-      res.send("could not get id from username", err);
-    } else {
-      if(!results[0]) {
-        res.send("could not get username");
-        return;
-      }
-      let chat_match_id = results[0].id;
+app.post('/getChatBetween2', (req, res) => { 
+  console.log("REQ====", req.body)
+  // const chat_match_username = Object.keys(req.body)[0]
+  // connection.query("SELECT id FROM users WHERE username=?", [chat_match_username], function (err, results) {
+  //   if (!!err) {
+  //     res.send("could not get id from username", err);
+  //   } else {
+  //     if(!results[0]) {
+  //       res.send("could not get username");
+  //       return;
+  //     }
+      // let chat_match_id = results[0].id;
+      let chat_match_id = Object.keys(req.body)[0]
       connection.query("SELECT * FROM user_chat_conversations WHERE user_id=? AND chat_match_id=? OR chat_match_id=? AND user_id=? ORDER BY conversation_id ", [req.session.myUserId, chat_match_id, req.session.myUserId, chat_match_id], function (err, results) {
         if (!!err) {
           res.send(err);
         } else {
+          results.forEach(x => {x.date = x.date.slice(0, 19).replace('T', ' ');})
           res.send(results);
         }
       })
     }
-  });
-})
+  // }
+  );
+// })
 
+app.get('/getAllConversationsWithMe', (req, res) => { 
+  console.log("REQ====2", req.body)
+
+  connection.query(`SELECT u1.username as fromUsername, u2.username as toUsername, user_chat_conversations.message, user_chat_conversations.date 
+                    FROM users AS u1 JOIN users AS u2 JOIN user_chat_conversations 
+                    ON (u1.id = user_chat_conversations.user_id) AND (u2.id = user_chat_conversations.chat_match_id) 
+                    WHERE user_id=? OR chat_match_id=?
+                    ORDER BY user_chat_conversations.conversation_id`, [req.session.myUserId, req.session.myUserId], 
+  function (err, results) {
+        if (!!err) {
+          res.send(err);
+        } else {
+          // results.forEach(({date}) => console.log(date))
+          res.send(results.map(
+            ({message, date, fromUsername, toUsername}) =>
+            ({message, date, fromUsername, toUsername})
+            ));
+        }
+      })
+    }
+)
 
 var port = process.env.PORT || 4000;
 
@@ -578,12 +602,12 @@ io.on('connection', function (client) {
         console.log(`SOCKET: got recipient id from data base: ${recipient_id}`);
         let query = "INSERT INTO matcha.user_chat_conversations (user_id, chat_match_id,  message, date) VALUES (?, ?, ?, ?)";
         query = mysql.format(query);
-        connection.query(query, [userid, recipient_id, message, date], (err, results) => {
+        connection.query(query, [userid, recipient_id, message, date], (err) => {
           if (!!err) {
             console.log("SOCKET error: could not store message in database", err)
           } else {
-            console.log("SOCKET: stored message in database")
-            let msg = {from:username, to, message, date};
+            console.log("SOCKET: stored message in database", username, to, message, date)
+            let msg = {fromUsername:username, toUsername:to, message, date};
             io.to(client.id).emit('chat message', msg);
             if(socket_ids[to] !== undefined) {
               io.to(socket_ids[to]).emit('chat message', msg);

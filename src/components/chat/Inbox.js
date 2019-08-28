@@ -12,46 +12,69 @@ export default class Inbox extends Component {
         this.state = {
             text: '',
             chatLines: [],
-            chatUsers: [],
             currentRecipient: '',
-            noConv: true,
+            mySessionId: '',
+            mySessionUsername: ''
         }
     }
-
+    noConv = () => {
+        return this.state.mySessionUsername === undefined ||
+            (this.state.chatLines.length === 0 && this.state.currentRecipient === "");
+    }
+    theOtherOne = ({ fromUsername: a, toUsername: b }) => {
+        return this.state.mySessionUsername !== a ? a : b
+    }
+    friends_usernames = () => {
+        let friends = [...new Set(this.state.chatLines.map(this.theOtherOne).reverse())];
+        let current = this.state.currentRecipient;
+        if (current !== "" && friends.indexOf(current) === -1) {
+            friends.unshift(current)
+        }
+        return friends;
+    }
 
     componentWillMount() {
         socket = io.connect('http://localhost:4000');
         if (this.props.location.aboutProps) {
             this.setState({
                 currentRecipient: this.props.location.aboutProps.username,
-                noConv: false
             })
         }
     }
 
     componentDidMount() {
-        socket.on("chat message", ({from, message}) => {
-            this.setState({ chatLines: [...this.state.chatLines,{ username:from, message}] })
+        socket.on("chat message", msg => {
+            this.setState({ chatLines: [...this.state.chatLines, msg] })
         })
-        axios('http://localhost:4000/getAllConversations', {
-            method: "post",
-            data: this.state.currentRecipient,
+
+        axios('http://localhost:4000/session', { method: "get", withCredentials: true })
+            .then((res) => { this.setState({ mySessionId: res.data.myUserId, mySessionUsername: res.data.myUsername }) })
+            .catch(error => console.log(error));
+
+        axios('http://localhost:4000/getAllConversationsWithMe', {
+            method: "get",
             withCredentials: true
+        }).then((res) => {
+            // this.setState({
+            //     friends_usernames:
+            //         [...new Set(res.data.map(x => x.fromUsername === this.state.mySessionUsername ? x.toUsername : x.fromUsername))]
+            //             .reverse()
+            // });
+            // this.setState({ chatLines: res.data, noConv: res.data.length === 0 })
+            this.setState({ chatLines: res.data })
+            if (this.state.currentRecipient === "") {
+                this.setState({ currentRecipient: this.friends_usernames()[0] });
+            }
+            // else {
+            //     if (this.state.friends_usernames.indexOf(this.state.currentRecipient) === -1) {
+            //         this.setState({ friends_usernames: [this.state.currentRecipient, ...this.state.friends_usernames] })
+            //     }
+            // }
         })
-            .then((res) => {
-                res.data.map(conv => {
-                    return axios.get(`http://localhost:4000/users/${conv.user_id}`, { withCredentials: true })
-                        .then((res) => {
-                            return this.setState({ chatLines: [...this.state.chatLines, { username: res.data[0].username, message: conv.message }] })
-                        })
-                        .catch((error) => {
-                            console.log(error);
-                        });
-                })
-            })
             .catch((error) => {
                 console.log(error);
             });
+
     }
 
     componentWillUnmount() {
@@ -87,30 +110,41 @@ export default class Inbox extends Component {
         socket.emit('chat message', { to, message: msg });
     }
 
-    displayChatUserButtons = () => {
-        if (this.state.currentRecipient !== "" && this.state.chatUsers.length <= 0) {
-            return <ChatUserButton username={this.state.currentRecipient} />
-        } else if (this.state.chatUsers.length > 0) {
-            this.state.chatUsers.map((user) => {
-                return <ChatUserButton id={user.id} />
-            })
-        }
+    displayChatUserButtons = (friends) => {
+        // if (this.state.currentRecipient !== "" && this.state.chatUsers.length <= 0) {
+        //     return <ChatUserButton username={this.state.currentRecipient} />
+        // } 
+        // else if (this.state.chatUsers.length > 0) {
+        //     this.state.chatUsers.map((user) => {
+        //         return <ChatUserButton id={user.id} />
+        //     })
+        // }
+        // if (this.state.currentRecipient !== "") {
+        //     buttons.unshift(<ChatUserButton username={this.state.currentRecipient} />)
+        // } 
+        return friends.map((friend,i) => {
+            let isCurrent = this.state.currentRecipient === friend;
+            let changeCurrent = () => this.setState({ currentRecipient: friend });
+            return <ChatUserButton changeCurrent={changeCurrent} id={friend} username={friend} isCurrent={isCurrent} />
+        })
     }
 
     render() {
+        let messageIsWithCurrentRecipient = msg =>
+            msg.fromUsername === this.state.currentRecipient ||
+            msg.toUsername === this.state.currentRecipient;
         return (
             <div>
                 <Menu />
                 <div style={{ marginTop: '2rem', maxWidth: '1440px', margin: '2rem auto' }}>
-                    {!this.state.noConv ?
+                    {!this.noConv() ?
                         <div style={{ display: 'flex', backgroundColor: 'aliceblue', overflow: 'scroll' }}>
                             <div style={{ backgroundColor: 'bisque', flex: 2, minHeight: 700, minWidth: 200, overflow: 'scroll' }}>
-                                {this.displayChatUserButtons()}
-
+                                {this.displayChatUserButtons(this.friends_usernames())}
                             </div>
                             <div id={"chatContainer"} style={{ backgroundColor: 'chocolate', position: 'relative', flex: 7, minHeight: 700, minWidth: 400 }}>
 
-                                <MessageList messages={this.state.chatLines} />
+                                <MessageList messages={this.state.chatLines.filter(messageIsWithCurrentRecipient)} />
 
                                 <div style={{ position: 'absolute', bottom: 0, width: '100%', display: 'flex' }}>
                                     <form style={{ width: '100%' }}

@@ -69,6 +69,8 @@ class Login extends Component {
           onSubmit={(e) => {
             e.preventDefault()
             if (!this.state.email)
+              this.setState({email:"hellokaumea@gmail.com", password:"Zxcvb1!"}); //TODO remove
+            if (!this.state.email)
               this.setState({
                 errorMsg: "Veuillez entrer votre email"
               });
