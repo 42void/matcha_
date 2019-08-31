@@ -5,7 +5,6 @@ import { Icon } from "semantic-ui-react";
 export default class ProfileCard extends Component {
 
   render() {
-    console.log("PROPROPS",this.props)
     const { image_path, username, age, town, id } = this.props.userinfo;
     let path_image = "http://localhost:4000/" + ( image_path ? image_path : "uploads/defaultPP.png") 
 

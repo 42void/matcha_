@@ -132,7 +132,6 @@ export default class Inbox extends Component {
     messageIsWithCurrentRecipient = msg => msg.fromUsername === this.state.currentRecipient || msg.toUsername === this.state.currentRecipient;
 
     render() {
-        console.log("S========",this.state)
         return (
             <div>
                 <Menu />
