@@ -153,6 +153,7 @@ class MyProfile extends Component {
                 </button> */}
 
             <h3>Photos</h3>
+            <p>La première sera votre photo de profil</p>
             <div style={{ display: "flex", flexWrap: "wrap" }}>
               {/* <MyProfilePhoto />
               <MyProfilePhoto />

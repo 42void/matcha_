@@ -10,9 +10,8 @@ export default class MessageList extends Component {
     
     render() {
         function niceDate(str) {
-            //console.log(str);
             let date = new Date(str);
-            let day = date.getFullYear() + '-' + (date.getMonth() < 10 ? '0' : '') + (date.getMonth() + 1) + '-' + date.getDate();
+            let day =  date.getDate() + "-" + (date.getMonth() < 10 ? '0' : '') + (date.getMonth() + 1) + '-' + date.getFullYear();
             let time = date.getHours() + ":" + (date.getMinutes() < 10 ? '0' : '') + date.getMinutes();
             return day + " -- " + time + " -- ";
         }
@@ -20,7 +19,7 @@ export default class MessageList extends Component {
         return (
             <div>
                 {this.props.messages.map((line, i) =>{
-                    return <div key={i}>{niceDate(line.date)} - {line.fromUsername} : {line.message}</div>
+                    return <div key={i}>{niceDate(line.date)} {line.fromUsername.toUpperCase()} : {line.message}</div>
                 })}
             </div>
         )

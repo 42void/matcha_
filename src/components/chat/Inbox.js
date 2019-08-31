@@ -19,7 +19,7 @@ export default class Inbox extends Component {
     }
     noConv = () => {
         return this.state.mySessionUsername === undefined ||
-            (this.state.chatLines.length === 0 && this.state.currentRecipient === "");
+            (this.state.chatLines.length === 0 && this.state.currentRecipient === undefined);
     }
     theOtherOne = ({ fromUsername: a, toUsername: b }) => {
         return this.state.mySessionUsername !== a ? a : b
@@ -129,10 +129,10 @@ export default class Inbox extends Component {
         })
     }
 
+    messageIsWithCurrentRecipient = msg => msg.fromUsername === this.state.currentRecipient || msg.toUsername === this.state.currentRecipient;
+
     render() {
-        let messageIsWithCurrentRecipient = msg =>
-            msg.fromUsername === this.state.currentRecipient ||
-            msg.toUsername === this.state.currentRecipient;
+        console.log("S========",this.state)
         return (
             <div>
                 <Menu />
@@ -144,7 +144,7 @@ export default class Inbox extends Component {
                             </div>
                             <div id={"chatContainer"} style={{ backgroundColor: 'chocolate', position: 'relative', flex: 7, minHeight: 700, minWidth: 400 }}>
 
-                                <MessageList messages={this.state.chatLines.filter(messageIsWithCurrentRecipient)} />
+                                <MessageList messages={this.state.chatLines.filter(this.messageIsWithCurrentRecipient)} />
 
                                 <div style={{ position: 'absolute', bottom: 0, width: '100%', display: 'flex' }}>
                                     <form style={{ width: '100%' }}

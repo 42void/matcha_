@@ -188,13 +188,13 @@ app.post("/login", (req, res, next) => {
 })
 
 app.get('/users', (req, res) => {
-  let session
-  let i=0
+  let session;
+  let i=0;
   for(let prop in req.sessionStore.sessions){
     session = JSON.parse(req.sessionStore.sessions[prop]).myUserId
     console.log(i++, req.session)
   }
-  connection.query("SELECT users.id, users.email, users.username, users.age, users.town, user_photos.image_path FROM users INNER JOIN user_photos ON users.id = user_photos.user_id WHERE user_photos.active = 1 AND users.id != ?", [req.session.myUserId], function(err, results){
+  connection.query("SELECT users.id, users.email, users.username, users.age, users.town, user_photos.image_path, user_photos.active FROM users LEFT JOIN user_photos ON users.id = user_photos.user_id AND user_photos.active = 1 WHERE users.id != ?", [req.session.myUserId], function(err, results){
       if (!!err) {
         res.send(err)
       };
@@ -488,6 +488,19 @@ app.post('/uploadPhoto', upload.single('myImage'), (req, res, next) => {
   });
 })
 
+app.post('/setAsPP', (req, res) => {
+  let image_path = Object.keys(req.body)[0]
+  var post = { active: 1 };
+  var post2 = { image_path: image_path };
+  connection.query("UPDATE user_photos SET ? WHERE ?", [post, post2], function (err) {
+    if (!!err) {
+      res.send(err);
+    } else {
+      res.send("PP updated")
+    }
+  });
+})
+
 app.post('/removePhoto', (req, res) => {
   const path = Object.keys(req.body)[0]
   console.log("path", path)
@@ -513,19 +526,6 @@ app.get('/getPhotosPaths', (req, res) => {
   });
 })
 
-app.post('/registerChatMessage', (req, res) => {
-  const chat_match_id = req.body.currentRecipient
-  let message = req.body.msg  
-  let query = `INSERT INTO matcha.user_chat_conversations (user_id, chat_match_id,  message, date) VALUES ('${req.session.myUserId}', '${chat_match_id}', '${message}', '${new Date().toISOString().slice(0, 19).replace('T', ' ')}')`;
-  query = mysql.format(query);
-  connection.query(query, (err, results) => {
-    if (!!err) {
-      res.send(err);
-    } else {
-      res.send(results)
-    }
-  });
-})
 
 app.post('/getChatBetween2', (req, res) => { 
   console.log("REQ====", req.body)
@@ -591,7 +591,7 @@ io.on('connection', function (client) {
   // receiving message and recipient's username from client
   client.on('chat message', function({to, message}){
     console.log(`SOCKET[userid=${userid}, socket_id:${client.id}]: sent ${message} to ${to} (socket_id=${socket_ids[to]})`);
-    let date = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    let date = new Date().toISOString();
 
     // get recipient's id from database
     connection.query("SELECT id FROM users WHERE username=?", [to], function (err, results) {
@@ -639,7 +639,6 @@ io.on('connection', function (client) {
     console.log(err)
   })
 })
-
 
 http.listen(port, function () {
   console.log('App listening on port ' + port + '!');

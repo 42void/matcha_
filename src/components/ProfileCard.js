@@ -5,8 +5,9 @@ import { Icon } from "semantic-ui-react";
 export default class ProfileCard extends Component {
 
   render() {
+    console.log("PROPROPS",this.props)
     const { image_path, username, age, town, id } = this.props.userinfo;
-    let path_image = "http://localhost:4000/" + image_path
+    let path_image = "http://localhost:4000/" + ( image_path ? image_path : "uploads/defaultPP.png") 
 
     const newTo = {
       pathname: `/profile/${id}`,
@@ -18,7 +19,9 @@ export default class ProfileCard extends Component {
           style={{
             height: "240px",
             backgroundImage: `url(${path_image})`,
-            backgroundSize: "cover"
+            backgroundSize: "contain",
+            backgroundPosition:"center",
+            backgroundRepeat: 'no-repeat'
           }}
         />
         <Link to={newTo} style={Username}>
@@ -41,6 +44,7 @@ const profileCard = {
   height: "340px",
   backgroundColor: "#fff",
   margin: 15,
+  padding:5,
   borderRadius: 5,
   boxShadow: `2px 2px 4px rgba(80, 80, 80, 0.6)`,
   border: `1px rgba(0, 0, 0, 0.249) solid`

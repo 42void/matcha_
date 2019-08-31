@@ -11,25 +11,25 @@ export class FileButton extends Component {
     this.state = {
       data: "",
       fileName: "",
-      btnSwitch:true,
-      disabled:true,
-      path:"",
+      btnSwitch: true,
+      disabled: true,
+      path: "",
     };
   }
 
   componentDidMount() {
     axios.get(`http://localhost:4000/getPhotosPaths`, { withCredentials: true })
       .then((res) => {
-        this.setState({paths:res.data})
+        this.setState({ paths: res.data })
       })
       .then(() => {
-        let {id} = this.props
-        let {paths} = this.state
-        if (paths[id]) { 
-          this.setState({btnSwitch:false})
-          this.setState({path:paths[id].image_path})
-          var img = new Image(200,200);
-          img.src = "http://localhost:4000/"+paths[id].image_path
+        let { id } = this.props
+        let { paths } = this.state
+        if (paths[id]) {
+          this.setState({ btnSwitch: false })
+          this.setState({ path: paths[id].image_path })
+          var img = new Image(200, 200);
+          img.src = "http://localhost:4000/" + paths[id].image_path
           document.getElementsByClassName("imgContainer")[id].append(img)
           document.getElementsByClassName("plusIcon")[id].style.display = `none`
         }
@@ -41,7 +41,7 @@ export class FileButton extends Component {
 
   onCancel = (e) => {
     e.preventDefault()
-    this.setState({btnSwitch:!this.state.btnSwitch, disabled:true})
+    this.setState({ btnSwitch: !this.state.btnSwitch, disabled: true })
     document.getElementsByClassName("addPhotoButton")[this.props.id].style.background = `#e0e1e2 `
     document.getElementsByClassName("plusIcon")[this.props.id].style.display = `initial`
     document.getElementsByClassName("imgContainer")[this.props.id].removeChild(document.getElementsByClassName("imgContainer")[this.props.id].firstChild)
@@ -50,17 +50,17 @@ export class FileButton extends Component {
       data: this.state.path,
       withCredentials: true,
     })
-    .then((response) => {
-      console.log("response image removed", response)
-    }).catch((error) => {
-      console.log(error);
-    });
+      .then((response) => {
+        console.log("response image removed", response)
+      }).catch((error) => {
+        console.log(error);
+      });
   }
 
   onFormSubmit = (e, id) => {
     e.preventDefault();
     // document.getElementsByClassName("registerBtn")[id].style.background = "green"
-    this.setState({btnSwitch:!this.state.btnSwitch})
+    this.setState({ btnSwitch: !this.state.btnSwitch })
     var file = this.state.file
     e.preventDefault();
     var data = new FormData();
@@ -79,18 +79,23 @@ export class FileButton extends Component {
       }
     })
       .then((response) => {
-        console.log("response image uploaded", response)
-        this.setState({path: response.data.path})
-      }).catch((error) => {
-        console.log(error);
-      });
+        this.setState({ path: response.data.path })
+        if (id === 0) {
+          console.log(response.data.path)
+          axios("http://localhost:4000/setAsPP", {
+            method: "post",
+            data: response.data.path,
+            withCredentials: true,
+          }).catch(e => console.log(e))
+        }
+      }).catch(e => console.log(e))
   }
 
 
-  //penser a bloquer les mauvais formats
-  onChangeFile = (e,id) => {
+  //TODO bloquer les mauvais formats
+  onChangeFile = (e, id) => {
     const files = e.target.files;
-    this.setState({ fileName: files[0].name, file: e.target.files[0], disabled:false });
+    this.setState({ fileName: files[0].name, file: e.target.files[0], disabled: false });
     let reader = new FileReader();
     reader.readAsDataURL(files["0"]);
     reader.onload = e => {
@@ -105,42 +110,43 @@ export class FileButton extends Component {
   };
 
   render() {
-    console.log("STATE",this.state)
     return (
       <div>
-      <form encType="multipart/form-data" onSubmit={(e)=>{this.state.btnSwitch ? this.onFormSubmit(e, this.props.id) : this.onCancel(e)}}>
-        <Button
-          style={{
-            width: 204,
-            height: 240,
-            borderRadius: 2,
-            marginTop: 15,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center"
-          }}
-          {...this.props}
-          as="label"
-          htmlFor={this.id}
-          className="addPhotoButton"
-        >
-        
-        {/* <img alt="imgContainer" id="imgContainer" src={require("../myImage-1563629229262.jpg")}/> */}
-        <div className="imgContainer"/>
+        <form encType="multipart/form-data" onSubmit={(e) => { this.state.btnSwitch ? this.onFormSubmit(e, this.props.id) : this.onCancel(e) }}>
+          <Button
+            style={{
+              width: 204,
+              height: 240,
+              borderRadius: 2,
+              marginTop: 15,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center"
+            }}
+            {...this.props}
+            as="label"
+            htmlFor={this.id}
+            className="addPhotoButton"
+          >
 
-          <Icon className="plusIcon" name="plus" />
-        </Button>
-        <input
-          hidden
-          id={this.id}
-          multiple
-          type="file"
-          onChange={(e)=>this.onChangeFile(e,this.props.id)}
-        />
-        <div style={{width:"90%"}}>
-          {this.state.btnSwitch?<Button style={button} disabled={this.state.disabled} id={this.props.id} className="registerBtn" size="small">Enregistrer</Button>:<Button style={cancelBtn} size="small">Supprimer</Button>}
-        </div>
-      </form>
+            {/* <img alt="imgContainer" id="imgContainer" src={require("../myImage-1563629229262.jpg")}/> */}
+            <div className="imgContainer" />
+
+            <Icon className="plusIcon" name="plus" />
+          </Button>
+          <input
+            hidden
+            id={this.id}
+            multiple
+            type="file"
+            onChange={(e) => this.onChangeFile(e, this.props.id)}
+          />
+          <div style={{ width: "90%" }}>
+            {this.state.btnSwitch ?
+              <Button style={button} disabled={this.state.disabled} id={this.props.id} className="registerBtn" size="small">Enregistrer</Button> :
+              <Button style={cancelBtn} size="small">Supprimer</Button>}
+          </div>
+        </form>
       </div>
     );
   }
@@ -150,13 +156,13 @@ const button = {
   // color: "white",
   // backgroundColor: this.state.connectionHover ? "#5D0101" : "#400000",
   margin: "5px 0px 0px 5px",
-  width:'100%'
+  width: '100%'
 };
 
 const cancelBtn = {
   margin: "5px 0px 0px 5px",
-  width:'100%',
-  backgroundColor:'#ff5252'
+  width: '100%',
+  backgroundColor: '#ff5252'
 }
 
 export default FileButton;
