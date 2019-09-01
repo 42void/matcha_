@@ -10,6 +10,7 @@ import MyProfile from "./components/MyProfile";
 import MemberProfile from "./components/MemberProfile";
 import Inbox from "./components/chat/Inbox";
 import Visits from "./components/Visits"
+import Search from "./components/Search"
 
 class App extends Component {
   render() {
@@ -26,7 +27,7 @@ class App extends Component {
             <Route path="/profile/:memberId" component={MemberProfile}/>
             <Route path="/inbox" component={Inbox}/>
             <Route path="/visits" component={Visits}/>
-
+            <Route path="/search" component={Search}/>
           </div>
         </Router>
       </div>

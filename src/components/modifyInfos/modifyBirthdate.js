@@ -16,7 +16,7 @@ export default class ModifyBirthdate extends Component {
   componentDidMount() {
     axios.get(`http://localhost:4000/getUserInfos`, { withCredentials: true })
       .then((res) => {
-        this.setState({ birthdate: res.data[0] ? res.data[0].age : null })
+        this.setState({ birthdate: res.data[0] ? res.data[0].birthdate : null })
       })
       .catch((error) => {
         console.log(error);
@@ -34,11 +34,12 @@ export default class ModifyBirthdate extends Component {
 
   render() {
     const { open, birthdate } = this.state;
+    let birth = birthdate && (birthdate.slice(4, 6) + "/" + birthdate.slice(6,8) + "/" + birthdate.slice(0, 4))
     return (
       <div>
         <div style={{ display: "flex", flexDirection: "row" }}>
           <div style={{ marginRight: "10px", marginBottom: '10px' }}>
-            <span style={{ fontWeight: 'bold', fontSize: "15px" }}>Date de naissance</span> : {this.state.birthdate}
+            <span style={{ fontWeight: 'bold', fontSize: "15px" }}>Date de naissance</span> : {birth}
           </div>
           <Modal
             open={open}
@@ -81,7 +82,7 @@ export default class ModifyBirthdate extends Component {
                 onClick={() => {
                   axios('http://localhost:4000/modifyBirthdate', {
                     method: "post",
-                    data: birthdate,
+                    data: birthdate.split('-').join(''),
                     withCredentials: true
                   })
                     .then((response) => {

@@ -106,7 +106,6 @@ class Register extends Component {
             } else {
               this.setState({ pwErrorMsg: "" });
               if (this.state.emailErrorMsg === "") {
-                console.log(this.state)
                 axios.post('http://localhost:4000/register', {
                   firstname,
                   lastname,

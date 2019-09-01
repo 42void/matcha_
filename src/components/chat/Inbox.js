@@ -17,13 +17,16 @@ export default class Inbox extends Component {
             mySessionUsername: ''
         }
     }
+
     noConv = () => {
         return this.state.mySessionUsername === undefined ||
             (this.state.chatLines.length === 0 && this.state.currentRecipient === undefined);
     }
+    
     theOtherOne = ({ fromUsername: a, toUsername: b }) => {
         return this.state.mySessionUsername !== a ? a : b
     }
+
     friends_usernames = () => {
         let friends = [...new Set(this.state.chatLines.map(this.theOtherOne).reverse())];
         let current = this.state.currentRecipient;
@@ -33,16 +36,15 @@ export default class Inbox extends Component {
         return friends;
     }
 
-    componentWillMount() {
+    componentDidMount() {
         socket = io.connect('http://localhost:4000');
+        
         if (this.props.location.aboutProps) {
             this.setState({
                 currentRecipient: this.props.location.aboutProps.username,
             })
         }
-    }
 
-    componentDidMount() {
         socket.on("chat message", msg => {
             this.setState({ chatLines: [...this.state.chatLines, msg] })
         })
@@ -55,25 +57,11 @@ export default class Inbox extends Component {
             method: "get",
             withCredentials: true
         }).then((res) => {
-            // this.setState({
-            //     friends_usernames:
-            //         [...new Set(res.data.map(x => x.fromUsername === this.state.mySessionUsername ? x.toUsername : x.fromUsername))]
-            //             .reverse()
-            // });
-            // this.setState({ chatLines: res.data, noConv: res.data.length === 0 })
             this.setState({ chatLines: res.data })
             if (this.state.currentRecipient === "") {
                 this.setState({ currentRecipient: this.friends_usernames()[0] });
             }
-            // else {
-            //     if (this.state.friends_usernames.indexOf(this.state.currentRecipient) === -1) {
-            //         this.setState({ friends_usernames: [this.state.currentRecipient, ...this.state.friends_usernames] })
-            //     }
-            // }
-        })
-            .catch((error) => {
-                console.log(error);
-            });
+        }).catch(error => console.log(error));
 
     }
 
@@ -102,7 +90,6 @@ export default class Inbox extends Component {
         //     </div>],
         //     text: ''
         // })
-
     }
 
     sendMessage = (msg) => {
@@ -111,21 +98,10 @@ export default class Inbox extends Component {
     }
 
     displayChatUserButtons = (friends) => {
-        // if (this.state.currentRecipient !== "" && this.state.chatUsers.length <= 0) {
-        //     return <ChatUserButton username={this.state.currentRecipient} />
-        // } 
-        // else if (this.state.chatUsers.length > 0) {
-        //     this.state.chatUsers.map((user) => {
-        //         return <ChatUserButton id={user.id} />
-        //     })
-        // }
-        // if (this.state.currentRecipient !== "") {
-        //     buttons.unshift(<ChatUserButton username={this.state.currentRecipient} />)
-        // } 
         return friends.map((friend,i) => {
             let isCurrent = this.state.currentRecipient === friend;
             let changeCurrent = () => this.setState({ currentRecipient: friend });
-            return <ChatUserButton key={i} changeCurrent={changeCurrent} id={friend} username={friend} isCurrent={isCurrent} />
+            return <ChatUserButton key={i} changeCurrent={changeCurrent} username={friend} isCurrent={isCurrent} />
         })
     }
 

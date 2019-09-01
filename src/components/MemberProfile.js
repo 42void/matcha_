@@ -32,9 +32,12 @@ export default function MemberProfile(props) {
   }
   
   useEffect(() => {
-    axios
-      .get(`http://localhost:4000/users/${id}`, { withCredentials: true })
-      .then(response =>{
+    Promise.all([
+      axios.get(`http://localhost:4000/users/${id}`, { withCredentials: true }),
+      axios.get(`http://localhost:4000/score/${id}`, { withCredentials: true }),
+      axios.get(`http://localhost:4000/liking/${id}`, { withCredentials: true })
+    ])
+      .then(([response1,response2,response3]) =>{
         // let photos = response.data.map(photo => {
         //   return photo.image_path;
         // });
@@ -48,7 +51,10 @@ export default function MemberProfile(props) {
         //   // score: result.score,
         //   // photos
         // });
-        setUsers(response.data[0])
+        let user = response1.data[0]
+        user.score = response2.data.score
+        user.liking = response3.data.liking
+        setUsers(user)
       })
       .catch((error) => {
         console.log(error);
@@ -61,7 +67,7 @@ export default function MemberProfile(props) {
       <div style={loginFormContainer}>
         <div style={{ display: "flex", flexDirection: "row" }}>
           <div style={usernameStyle}>{users.username}</div>
-          <PopularityScore id={id} score={users.score} />
+          <PopularityScore id={id} score={users.score} liking={users.liking} />
         </div>
         <div style={{ display: "flex", flexDirection: "row" }}>
           <div style={ageTown}>{users.age} ans </div>

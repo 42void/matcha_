@@ -11,8 +11,11 @@ if (process.env.NODE_ENV !== "production") {
 }
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
+var moment = require('moment');
+moment().format();
 var multer = require('multer')
 var bodyParser = require("body-parser");
+
 
 app.use("/uploads", express.static('uploads'))
 
@@ -52,28 +55,114 @@ app.get('/getUserInfos', function (req, res) {
   });
 })
 
+let birthdateToAge = (user) => {
+  let age = moment().diff(moment(user.birthdate, 'YYYYMMDD'), 'years')
+  delete user.birthdate;
+  user.age = age;
+  return user;
+}
+
 app.get('/users', (req, res) => {
-  // eslint-disable-next-line no-unused-vars
-  let session;
-  let i = 0;
-  for (let prop in req.sessionStore.sessions) {
-    session = JSON.parse(req.sessionStore.sessions[prop]).myUserId
-    console.log(i++, req.session)
+  if(req.session.myUserId === undefined) {
+    res.sendStatus(403);
+    return;
   }
-  connection.query("SELECT users.id, users.email, users.username, users.age, users.town, user_photos.image_path, user_photos.active FROM users LEFT JOIN user_photos ON users.id = user_photos.user_id AND user_photos.active = 1 WHERE users.id != ?", [req.session.myUserId], function (err, results) {
+  connection.query("SELECT users.id, users.email, users.username, users.birthdate, users.town, user_photos.image_path, user_photos.active FROM users LEFT JOIN user_photos ON users.id = user_photos.user_id AND user_photos.active = 1 WHERE users.id != ?", [req.session.myUserId], function (err, results) {
     if (!!err) {
       res.send(err)
     };
-    res.send(results);
+    res.send(results.map(birthdateToAge));
   });
 });
 
 app.get('/users/:id', (req, res) => {
+  if(req.session.myUserId === undefined) {
+    res.sendStatus(403);
+    return;
+  }
   connection.query("SELECT * FROM users WHERE id=?", [req.params.id], function (err, results) {
     if (!!err) {
       res.send(err);
     } else {
-      res.send(results);
+      res.send(results.map(birthdateToAge));
+    }
+  });
+});
+
+app.get('/score/:id', (req, res) => {
+  if(req.session.myUserId === undefined) {
+    res.sendStatus(403);
+    return;
+  }
+  connection.query("SELECT * FROM likes WHERE liked=?", [req.params.id], function (err, results) {
+    if (!!err) {
+      res.send(err);
+    } else {
+      res.send({score:results.length});
+    }
+  });
+});
+
+app.get('/liking/:id', (req, res) => {
+  if(req.session.myUserId === undefined) {
+    res.sendStatus(403);
+    return;
+  }
+  connection.query("SELECT * FROM likes WHERE liked=? AND liker=?", [req.params.id, req.session.myUserId], function (err, results) {
+    if (!!err) {
+      res.send(err);
+    } else {
+      res.send({liking:results.length ? true : false});
+    }
+  });
+});
+
+app.post('/toggleLike/:id', (req, res) => {
+  let id = req.params.id
+  let myId = req.session.myUserId
+  if(myId === undefined) {
+    res.sendStatus(403);
+    return;
+  }
+
+  // Know if I already like this person
+  connection.query("SELECT * FROM likes WHERE liker=? AND liked=?", [myId, id], (err, results) => { 
+    if (!!err) {
+      res.send(err);
+    } else {
+      if (results.length > 0) {
+        // If yes, let's delete the like
+        connection.query("DELETE FROM likes WHERE liker=? AND liked=?", [myId, id], (err, results) => {
+          if (!!err) {
+            res.send(err);
+          } else {
+            // And recompute the score
+            connection.query("SELECT * FROM likes WHERE liked=?", [id], function (err, results) {
+              if (!!err) {
+                res.send(err);
+              } else {
+                res.send({score:results.length, liking:false});
+              }
+            });
+          }
+        })
+      } else {
+        // If I don't like this person, let's add a like
+        connection.query("INSERT INTO likes (`liker`, `liked`) VALUES (?, ?)", [myId, id], (err, results) => {
+          if (!!err) {
+            res.send(err);
+          } else {
+            // And recompute the score
+            connection.query("SELECT * FROM likes WHERE liked=?", [id], function (err, results) {
+              if (!!err) {
+                res.send(err);
+              } else {
+                res.send({score:results.length, liking:true});
+              }
+            });
+          }
+        })
+      }
     }
   });
 });
@@ -114,7 +203,6 @@ app.post('/register', async (req, res) => {
             expiresIn: "1d"
           },
           (err, emailToken) => {
-            console.log("email token", emailToken)
             const url = `http://localhost:4000/confirmation/${emailToken}`;
 
             transporterConfirmation.sendMail({
@@ -194,7 +282,7 @@ app.post('/forgotPwd', (req, res) => {
     [email],
     (err, results) => {
       if (err) {
-        console.log("ERR", err)
+        console.log("forgot pw err", err)
       }
       else {
         if (results.length > 0) {
@@ -268,7 +356,7 @@ app.get('/getMemberProfileInfos/:id', (req, res) => {
     //   INNER JOIN user_popularity_score ON users.id = user_popularity_score.user_id
     //   WHERE users.id = ?`
     `SELECT users.username, 
-        users.age, 
+        users.birthdate, 
         users.town, 
         users.biography 
         FROM users 
@@ -374,8 +462,8 @@ app.post('/modifySexualOrientation', (req, res) => {
 })
 
 app.post('/modifyBirthdate', (req, res) => {
-  const birthdate = Object.keys(req.body)[0]
-  var post = { age: birthdate };
+  const birthdate = Object.keys(req.body)[0].toString()
+  var post = { birthdate };
   var post2 = { id: req.session.myUserId };
   connection.query("UPDATE users SET ? WHERE ?", [post, post2], function (err) {
     if (!!err) {
@@ -532,10 +620,10 @@ io.use(sharedSession(session_config));
 const socket_ids = {};
 
 io.on('connection', function (client) {
+  //new connection
   let userid = client.handshake.session.myUserId;
   let username = client.handshake.session.myUsername;
   socket_ids[username] = client.id;
-  console.log(`SOCKET[userid=${userid}, socket_id:${client.id}]: new connection`);
 
   // receiving message and recipient's username from client
   client.on('chat message', function ({ to, message }) {
@@ -548,14 +636,14 @@ io.on('connection', function (client) {
         console.log(`SOCKET: error: could not get id from username ${to}`);
       } else {
         let recipient_id = results[0].id;
-        console.log(`SOCKET: got recipient id from data base: ${recipient_id}`);
+        // got recipient id from database
         let query = "INSERT INTO matcha.user_chat_conversations (user_id, chat_match_id, message, date) VALUES (?, ?, ?, ?)";
         query = mysql.format(query);
         connection.query(query, [userid, recipient_id, message, date], (err) => {
           if (!!err) {
             console.log("SOCKET error: could not store message in database", err)
           } else {
-            console.log("SOCKET: stored message in database", username, to, message, date)
+            // stored message in database
             let msg = { fromUsername: username, toUsername: to, message, date };
             io.to(client.id).emit('chat message', msg);
             if (socket_ids[to] !== undefined) {

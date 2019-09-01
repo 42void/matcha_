@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 
 export default class ChatUserButton extends Component {
     render() {
-        let backgroundColor = this.props.isCurrent ? 'rgb(140, 255, 150)' : 'honeydew';
+        let backgroundColor = this.props.isCurrent ? 'rgb(140, 255, 150)' : '#fff';
         let fontWeight = this.props.isCurrent ? 'bold' : 'normal';
         return (
             <button onClick={this.props.changeCurrent} style={{border: 'gray 0.5px solid', width: '100%', height: 80, display: 'flex',padding: 0, alignItems: 'center', backgroundColor}}>
@@ -14,11 +14,11 @@ export default class ChatUserButton extends Component {
 }
 
 const photo = {
+    display: "flex",
     width: "30%",
     backgroundColor: "cadetblue",
-    height: "100%",
-    display: "flex",
     justifyContent: "center",
-    alignItems: "center" 
+    alignItems: "center",
+    height:79,
 }
     
