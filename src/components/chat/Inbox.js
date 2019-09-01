@@ -125,7 +125,7 @@ export default class Inbox extends Component {
         return friends.map((friend,i) => {
             let isCurrent = this.state.currentRecipient === friend;
             let changeCurrent = () => this.setState({ currentRecipient: friend });
-            return <ChatUserButton changeCurrent={changeCurrent} id={friend} username={friend} isCurrent={isCurrent} />
+            return <ChatUserButton key={i} changeCurrent={changeCurrent} id={friend} username={friend} isCurrent={isCurrent} />
         })
     }
 
@@ -138,10 +138,10 @@ export default class Inbox extends Component {
                 <div style={{ marginTop: '2rem', maxWidth: '1440px', margin: '2rem auto' }}>
                     {!this.noConv() ?
                         <div style={{ display: 'flex', backgroundColor: 'aliceblue', overflow: 'scroll' }}>
-                            <div style={{ backgroundColor: 'bisque', flex: 2, minHeight: 700, minWidth: 200, overflow: 'scroll' }}>
+                            <div style={{flex: 2, minHeight: 700, minWidth: 200, overflow: 'scroll' }}>
                                 {this.displayChatUserButtons(this.friends_usernames())}
                             </div>
-                            <div id={"chatContainer"} style={{ backgroundColor: 'chocolate', position: 'relative', flex: 7, minHeight: 700, minWidth: 400 }}>
+                            <div id={"chatContainer"} style={{ backgroundColor: '#c2c2c2', position: 'relative', flex: 7, minHeight: 700, minWidth: 400 }}>
 
                                 <MessageList messages={this.state.chatLines.filter(this.messageIsWithCurrentRecipient)} />
 

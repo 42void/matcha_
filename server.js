@@ -14,23 +14,21 @@ const nodemailer = require("nodemailer");
 var multer = require('multer')
 var bodyParser = require("body-parser");
 
-app.use("/uploads",express.static('uploads'))
+app.use("/uploads", express.static('uploads'))
 
 app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true // enable set cookie
 }));
 
-let session_with_configuration = session({
+let session_config = session({
   secret: process.env.SESS_SECRET,
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false, maxAge: 60000 * 60 * 24 },
 });
 
-console.log(session_with_configuration)
-
-app.use(session_with_configuration);
+app.use(session_config);
 
 var connection = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -40,11 +38,11 @@ var connection = mysql.createConnection({
 });
 connection.connect();
 
-app.get('/session', function(req, res) {
+app.get('/session', function (req, res) {
   res.send(req.session)
 });
 
-app.get('/getUserInfos', function(req, res) {
+app.get('/getUserInfos', function (req, res) {
   connection.query("SELECT * FROM users WHERE id=?", [req.session.myUserId], function (err, results) {
     if (!!err) {
       res.send(err);
@@ -53,6 +51,22 @@ app.get('/getUserInfos', function(req, res) {
     }
   });
 })
+
+app.get('/users', (req, res) => {
+  // eslint-disable-next-line no-unused-vars
+  let session;
+  let i = 0;
+  for (let prop in req.sessionStore.sessions) {
+    session = JSON.parse(req.sessionStore.sessions[prop]).myUserId
+    console.log(i++, req.session)
+  }
+  connection.query("SELECT users.id, users.email, users.username, users.age, users.town, user_photos.image_path, user_photos.active FROM users LEFT JOIN user_photos ON users.id = user_photos.user_id AND user_photos.active = 1 WHERE users.id != ?", [req.session.myUserId], function (err, results) {
+    if (!!err) {
+      res.send(err)
+    };
+    res.send(results);
+  });
+});
 
 app.get('/users/:id', (req, res) => {
   connection.query("SELECT * FROM users WHERE id=?", [req.params.id], function (err, results) {
@@ -77,36 +91,20 @@ var salt = bcrypt.genSaltSync(Number(process.env.SALT));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.post('/register', async (req, res) => {
-  // console.log("REQ.SESSIONSTORE",req.sessionStore)
-  //SESSION
-  // connection.query(`SELECT * FROM sessions`, (err, results) => {
-  // var results = JSON.parse(JSON.stringify(results))
-  // results = JSON.parse(results[0].data)
-  // console.log("session store userId on distant db ==>", results.userId)
-  // })
-  // console.log(email)
   const { firstname, lastname, username, email, password } = req.body
   const hashedPassword = await bcrypt.hash(password, salt);
   connection.query("SELECT * FROM users WHERE email=?", [email], function (
     err,
-    rows,
-    fields
+    rows
   ) {
-    console.log(`${err} ${rows}`)
-
     if (err) res.send(err);
     if (rows.length > 0) {
       res.send("Vous êtes déjà membre");
     } else {
-      console.log("insert user")
       let sql2 = `INSERT INTO users (firstname, lastname, username, email, password, confirmed) VALUES ('${firstname}', '${lastname}', '${username}', '${email}', '${hashedPassword}', 0)`;
       sql2 = mysql.format(sql2);
       connection.query(sql2, (err, results) => {
-        console.log("results registration", results);
-        console.log("err registration", err);
-
         if (err) res.send(err);
-        // req.session.userID = 42; //why does this ignit the registration of session in db?
         jwt.sign(
           {
             user: email
@@ -138,10 +136,8 @@ app.post('/register', async (req, res) => {
 
 app.get("/confirmation/:token", (req, res, next) => {
   try {
-    // const { user: { email } } = jwt.verify(req.params.token, EMAIL_SECRET);
     const verify = jwt.verify(req.params.token, process.env.EMAIL_SECRET);
     const email = verify.user;
-    //query pour mettre l'utilisateur avec cet email à confirmed = 1
     var post = { confirmed: 1 };
     var post2 = { email: email };
     connection.query("UPDATE users SET ? WHERE ?", [post, post2], function (
@@ -164,8 +160,6 @@ app.get("/confirmation/:token", (req, res, next) => {
 
 app.post("/login", (req, res, next) => {
   const { email, password } = req.body
-  // console.log(`${parent} ${Object.keys(context)} ${Object.keys(info)}`)
-  // console.log("REQ.SESSIONID on local server ==>", req.sessionID);
   connection.query("SELECT * FROM users WHERE email=?", [email], (err, results) => {
     if (err) res.send(err);
     if (results.length < 1) {
@@ -175,7 +169,6 @@ app.post("/login", (req, res, next) => {
     let hash = results[0].password;
     req.session.myUserId = results[0].id;
     req.session.myUsername = results[0].username;
-    // console.log("session set", req.session)
     bcrypt.compare(password, hash, function (err, response) {
       if (err) {
         res.send(err);
@@ -186,22 +179,6 @@ app.post("/login", (req, res, next) => {
     });
   });
 })
-
-app.get('/users', (req, res) => {
-  let session;
-  let i=0;
-  for(let prop in req.sessionStore.sessions){
-    session = JSON.parse(req.sessionStore.sessions[prop]).myUserId
-    console.log(i++, req.session)
-  }
-  connection.query("SELECT users.id, users.email, users.username, users.age, users.town, user_photos.image_path, user_photos.active FROM users LEFT JOIN user_photos ON users.id = user_photos.user_id AND user_photos.active = 1 WHERE users.id != ?", [req.session.myUserId], function(err, results){
-      if (!!err) {
-        res.send(err)
-      };
-      res.send(results);
-  });
-});
-
 
 var transporterForgotPwd = nodemailer.createTransport({
   service: "gmail",
@@ -245,12 +222,6 @@ app.post('/forgotPwd', (req, res) => {
   );
 })
 
-
-// app.get('/resetPassword/:token', async (req, res) => {
-//   const { token } = req.params
-//   res.send(token);
-// })
-
 app.post('/resetPassword', async (req, res) => {
   const { resetPassword, token } = req.body
   const hashedPassword = await bcrypt.hash(resetPassword, salt);
@@ -266,7 +237,6 @@ app.post('/resetPassword', async (req, res) => {
     }
   });
 })
-
 
 app.get('/getMemberProfileInfos/:id', (req, res) => {
   const { id } = req.params
@@ -417,7 +387,6 @@ app.post('/modifyBirthdate', (req, res) => {
 })
 
 app.post('/modifyPassword', async (req, res) => {
-  console.log('test')
   const password = Object.keys(req.body)[0]
   const hashedPassword = await bcrypt.hash(password, salt);
   var post = { password: hashedPassword };
@@ -503,7 +472,6 @@ app.post('/setAsPP', (req, res) => {
 
 app.post('/removePhoto', (req, res) => {
   const path = Object.keys(req.body)[0]
-  console.log("path", path)
   var post = { image_path: path };
   var post2 = { user_id: req.session.myUserId };
   connection.query("DELETE FROM user_photos WHERE ? AND ?", [post, post2], function (err) {
@@ -520,65 +488,46 @@ app.get('/getPhotosPaths', (req, res) => {
     if (!!err) {
       res.send(err);
     } else {
-      // console.log(results[0].image_path)
       res.send(results);
     }
   });
 })
 
 
-app.post('/getChatBetween2', (req, res) => { 
-  console.log("REQ====", req.body)
-  // const chat_match_username = Object.keys(req.body)[0]
-  // connection.query("SELECT id FROM users WHERE username=?", [chat_match_username], function (err, results) {
-  //   if (!!err) {
-  //     res.send("could not get id from username", err);
-  //   } else {
-  //     if(!results[0]) {
-  //       res.send("could not get username");
-  //       return;
-  //     }
-      // let chat_match_id = results[0].id;
-      let chat_match_id = Object.keys(req.body)[0]
-      connection.query("SELECT * FROM user_chat_conversations WHERE user_id=? AND chat_match_id=? OR chat_match_id=? AND user_id=? ORDER BY conversation_id ", [req.session.myUserId, chat_match_id, req.session.myUserId, chat_match_id], function (err, results) {
-        if (!!err) {
-          res.send(err);
-        } else {
-          results.forEach(x => {x.date = x.date.slice(0, 19).replace('T', ' ');})
-          res.send(results);
-        }
-      })
+app.post('/getChatBetween2', (req, res) => {
+  let chat_match_id = Object.keys(req.body)[0]
+  connection.query("SELECT * FROM user_chat_conversations WHERE user_id=? AND chat_match_id=? OR chat_match_id=? AND user_id=? ORDER BY conversation_id ", [req.session.myUserId, chat_match_id, req.session.myUserId, chat_match_id], function (err, results) {
+    if (!!err) {
+      res.send(err);
+    } else {
+      results.forEach(x => { x.date = x.date.slice(0, 19).replace('T', ' '); })
+      res.send(results);
     }
-  // }
-  );
-// })
+  })
+});
 
-app.get('/getAllConversationsWithMe', (req, res) => { 
-  console.log("REQ====2", req.body)
+app.get('/getAllConversationsWithMe', (req, res) => {
 
   connection.query(`SELECT u1.username as fromUsername, u2.username as toUsername, user_chat_conversations.message, user_chat_conversations.date 
                     FROM users AS u1 JOIN users AS u2 JOIN user_chat_conversations 
                     ON (u1.id = user_chat_conversations.user_id) AND (u2.id = user_chat_conversations.chat_match_id) 
                     WHERE user_id=? OR chat_match_id=?
-                    ORDER BY user_chat_conversations.conversation_id`, [req.session.myUserId, req.session.myUserId], 
-  function (err, results) {
-        if (!!err) {
-          res.send(err);
-        } else {
-          // results.forEach(({date}) => console.log(date))
-          res.send(results.map(
-            ({message, date, fromUsername, toUsername}) =>
-            ({message, date, fromUsername, toUsername})
-            ));
-        }
-      })
-    }
-)
+                    ORDER BY user_chat_conversations.conversation_id`, [req.session.myUserId, req.session.myUserId],
+    function (err, results) {
+      if (!!err) {
+        res.send(err);
+      } else {
+        res.send(results.map(
+          ({ message, date, fromUsername, toUsername }) => ({ message, date, fromUsername, toUsername })
+        ));
+      }
+    })
+})
 
 var port = process.env.PORT || 4000;
 
 io.set('origins', 'http://localhost:3000');
-io.use(sharedSession(session_with_configuration)); 
+io.use(sharedSession(session_config));
 
 const socket_ids = {};
 
@@ -589,7 +538,7 @@ io.on('connection', function (client) {
   console.log(`SOCKET[userid=${userid}, socket_id:${client.id}]: new connection`);
 
   // receiving message and recipient's username from client
-  client.on('chat message', function({to, message}){
+  client.on('chat message', function ({ to, message }) {
     console.log(`SOCKET[userid=${userid}, socket_id:${client.id}]: sent ${message} to ${to} (socket_id=${socket_ids[to]})`);
     let date = new Date().toISOString();
 
@@ -600,16 +549,16 @@ io.on('connection', function (client) {
       } else {
         let recipient_id = results[0].id;
         console.log(`SOCKET: got recipient id from data base: ${recipient_id}`);
-        let query = "INSERT INTO matcha.user_chat_conversations (user_id, chat_match_id,  message, date) VALUES (?, ?, ?, ?)";
+        let query = "INSERT INTO matcha.user_chat_conversations (user_id, chat_match_id, message, date) VALUES (?, ?, ?, ?)";
         query = mysql.format(query);
         connection.query(query, [userid, recipient_id, message, date], (err) => {
           if (!!err) {
             console.log("SOCKET error: could not store message in database", err)
           } else {
             console.log("SOCKET: stored message in database", username, to, message, date)
-            let msg = {fromUsername:username, toUsername:to, message, date};
+            let msg = { fromUsername: username, toUsername: to, message, date };
             io.to(client.id).emit('chat message', msg);
-            if(socket_ids[to] !== undefined) {
+            if (socket_ids[to] !== undefined) {
               io.to(socket_ids[to]).emit('chat message', msg);
             }
           }
@@ -643,8 +592,9 @@ io.on('connection', function (client) {
 http.listen(port, function () {
   console.log('App listening on port ' + port + '!');
 });
-      // app.use((req, res, next) => {
-      //   res.status(200).json({
-      //     message: 'it works'
-      //   })
-      // })
+
+// app.use((req, res, next) => {
+//   res.status(200).json({
+//     message: 'it works'
+//   })
+// })

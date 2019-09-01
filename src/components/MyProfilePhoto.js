@@ -17,7 +17,6 @@ export default class MyProfilePhoto extends Component {
           <div
             style={{
               height: "240px",
-              backgroundImage: 'url("http://lorempixel.com/640/480/people")',
               backgroundSize: "cover"
             }}
           />
